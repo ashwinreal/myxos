@@ -1,0 +1,71 @@
+alias phySP S0;
+alias procpcb S7;
+alias filefat S8;
+alias lseek S9;
+alias syscallno S1;
+alias basicblk S2;
+alias basicblkind S3;
+alias datablk S10;
+alias ctr S4;
+alias arg1 S5;
+alias arg2 S6;
+phySP = (SP%512) + [PTBR + 2*(SP/512)]*512;
+syscallno=[phySP-1];
+
+////////////// write
+if(syscallno==5) then
+    print("wrtiting");
+    arg1=[phySP-4];//file descriptor 
+    arg2=[phySP-3];//word to write
+
+    procpcb=READY_LIST + ((PTBR-1024)/8)*32;
+    ctr=0;
+    if(arg1 < 0 || arg1 > 7) then
+        [phySP-2]=-1;
+        print "invalid fd";
+        ireturn;
+    endif;
+
+    if([procpcb+15+2*arg1]==-1) then 
+        [phySP-2]=-1;
+        print "not found";
+        ireturn;
+    endif;
+    filefat=[FILE_TABLE + 2*[procpcb+15+2*arg1]];
+    lseek=[procpcb+15+2*arg1 +1];
+
+    basicblk=[5*512 + 8*filefat + 2];
+    load(1,basicblk);
+    basicblkind=lseek/512;
+    datablk=[512 +basicblkind];
+    if([512 + basicblkind]==-1) then// new data block has to be allocated
+        ctr=24;
+        while(ctr<448) do
+            if([6*512 + ctr]==0) then
+                break;
+            endif;
+            ctr=ctr+1;
+        endwhile;
+        if(ctr==448) then
+            print("no free");
+            [phySP-2]=-1;
+            ireturn;
+        endif;
+        datablk=ctr;
+        [6*512 + ctr]=1; //allocate it as data blk
+        [512 + basicblkind]=ctr; // upadate basic block
+        store(1,basicblk); // store it back
+        [5*512 + 8*filefat + 1]=512+[5*512 + 8*filefat + 1]; //increase the file size by 512
+        store(5,19);
+        store(6,20);
+
+    endif;
+    load(1,datablk); //load the correct datablk
+    [512 + (lseek%512)]=arg2;//write into file
+    print(arg2);
+    store(1,datablk);
+    [procpcb + 15 + 2*arg1 + 1 ]=1+[procpcb+15+2*arg1 +1]; // increase lseek
+    print ("wrote");
+    [phySP-2]=0;
+    ireturn;
+endif;

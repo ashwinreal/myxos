@@ -1,0 +1,23 @@
+alias n S0 ;
+alias ctr S1;
+alias ctr2 S2;
+alias flag S3;
+print "enter n: ";
+read n;
+ctr=2;
+while(ctr<=n) do
+	ctr2=2;
+	flag=0;
+	while((ctr2*ctr2)<=ctr)  do
+		if(ctr%ctr2==0) then
+			flag=1;
+			break;
+		endif;
+		ctr2=ctr2+1;
+	endwhile;
+	if(flag==0) then
+		print ctr;
+	endif;
+	ctr=ctr+1;
+		
+endwhile;

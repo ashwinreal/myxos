@@ -1,0 +1,59 @@
+load(7,1);//exception handler
+load(8,2);
+
+load(9,3);//timer int
+load(10,4);
+
+load(11,5);//int1
+load(12,6);
+
+load(23,17);//int7
+load(24,18);
+
+[READY_LIST + 0]=0;//pid of init =0
+load(25,21);//init
+load(26,22);
+load(27,23);
+
+PTLR=4;
+PTBR=1024;
+[PTBR + 0]=25; 
+[PTBR + 1]="01";
+[PTBR + 2]=26;
+[PTBR + 3]="01";
+[PTBR + 4]=27;
+[PTBR + 5]="01";
+[PTBR + 6]=28;
+[PTBR + 7]="01";
+
+[READY_LIST + 1]=2;//init is set running
+
+SP=3*512;
+
+[28*512]=0;
+
+
+load(29,25);//load second program
+[READY_LIST + 32]=1;//setting its pid
+
+alias PTBR_1 S0;
+PTBR_1 =1024 + 8;
+[PTBR_1 + 0]=29;
+[PTBR_1 + 1]="01";
+[PTBR_1 + 2]=-1;
+[PTBR_1 + 3]="00";
+[PTBR_1 + 4]=-1;
+[PTBR_1 + 5]="00";
+[PTBR_1 + 6]=30;
+[PTBR_1 + 7]="01";
+
+[READY_LIST+33]=1;
+[READY_LIST + 37]=PTBR_1;
+[READY_LIST + 38]=4;
+[READY_LIST + 34]=3*512;//setting BP
+[READY_LIST + 35]=3*512;//setting SP
+[READY_LIST + 36]=0;//ip of code area starts from logical add 0
+
+
+
+ireturn;

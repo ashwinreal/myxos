@@ -1,0 +1,134 @@
+print "int2 start";
+
+alias phySP S0;
+
+phySP= (SP%512)+ ([PTBR + 2*(SP/512)]*512);
+
+alias syscallno S1;
+syscallno =[phySP-1];
+alias arg1 S2;
+arg1=[phySP-3];
+alias retval S4;
+alias ctr S5;
+alias filefat S6;
+alias sysft S7;
+alias procpcb S8;
+alias ctr2 S9;
+if(syscallno==2) then
+	print("in open");
+	ctr=0;
+	print(arg1);
+	while(ctr<64) do
+		if([5*512 + ctr*8]==arg1) then  //page 5 has fat table
+			break;
+		endif;
+		ctr=ctr+1;
+	endwhile;
+	if(ctr==64) then
+		retval=-1;
+		print "no file";
+		[phySP-2]=retval;
+		ireturn;
+		
+	endif;
+	
+	filefat=ctr;
+	ctr=0;
+	while(ctr<64) do    //searching in system wide file table
+		if([FILE_TABLE+ 2*ctr]==filefat) then
+			break;
+		endif;
+		ctr=ctr+1;
+	endwhile;
+	if(ctr<64) then
+		sysft=ctr;
+		//[FILE_TABLE+ 2*sysft + 1]=[FILE_TABLE+ 2*sysft + 1]+1; //increase file open count at the end not here!!!
+	else
+		ctr=0;
+		while(ctr<64) do 
+			if([FILE_TABLE + 2*ctr]==-1) then
+				break;
+			endif;
+			ctr=ctr+1;
+		endwhile;
+		if(ctr==64) then 
+			[phySP-2]=-1;
+			print "full sysft";
+			ireturn;
+		else
+			sysft=ctr;
+			//[FILE_TABLE+ 2*sysft + 0]=filefat;  // creating new sys wide entry at the end not here!!!
+			//[FILE_TABLE+ 2*sysft + 1]=1;
+			ctr=ctr+1;
+		endif;
+	endif;
+	ctr=0;
+
+	
+	procpcb=READY_LIST + ((PTBR-1024)/8)*32;
+	while(ctr<8) do
+		if([procpcb + 15 +2*ctr] ==-1) then
+			break;
+		endif;
+		ctr=ctr+1;
+	endwhile;
+	if(ctr==8) then
+		[phySP-2]=-1;
+		print "8 process";
+		ireturn;
+	endif;
+	[procpcb + 15 +2*ctr]=sysft;
+	[procpcb + 15 +2*ctr+1]=0;
+	[FILE_TABLE+ 2*sysft + 0]=filefat;
+	[FILE_TABLE+ 2*sysft + 1]=[FILE_TABLE+ 2*sysft + 1]+1;
+
+	print "open success";
+	[phySP-2]=ctr;
+	ireturn;
+endif;
+
+
+
+//////////////////// close
+
+if(syscallno==3) then  //arg1 stores file decriptor ,index of per proc file table
+	procpcb=READY_LIST + ((PTBR-1024)/8)*32;
+	print(procpcb);
+	
+	ctr=0;
+	if(arg1 < 0 || arg1 > 7) then
+		[phySP-2]=-1;
+		print "invalid";
+		ireturn;
+	endif;
+	
+	if([procpcb+15+2*arg1]==-1) then 
+		[phySP-2]=-1;
+		print "not found";
+		ireturn;
+	endif;
+	ctr=[procpcb+15+2*arg1] ; // ctr stores pointer to sys wide 
+	
+	print(ctr);
+	
+	ctr2=[FILE_TABLE + 2*ctr + 1];
+	
+	[FILE_TABLE + 2*ctr + 1]=[FILE_TABLE + 2*ctr + 1]-1;  // decrease the file count
+
+	// dbt: did not work when : [FILE_TABLE + 2*[FILE_TABLE + 2*[ctr] + 1]+ 1]=[FILE_TABLE + 2*[FILE_TABLE + 2*[ctr] + 1] + 1]-1; 
+	
+	ctr2=[FILE_TABLE + 2*ctr + 1];
+	print(ctr2);
+
+	if([FILE_TABLE + 2*[procpcb+15+2*arg1]+1]==0) then
+		[FILE_TABLE + 2*[procpcb+15+2*arg1]]=-1; //if 0 file count invalidate  sys wide entry
+		print ("removefrmsys");
+	endif;
+
+	[procpcb+15+2*arg1]=-1;    // invalidate per proc entry
+	[procpcb+15+2*arg1 + 1]=-1;
+	print "closed";
+	[phySP-2]=0;
+	ireturn ;
+endif;
+	

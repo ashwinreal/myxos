@@ -1,0 +1,14 @@
+decl
+    integer status;
+    integer a;
+    integer ctr;
+enddecl
+integer main()
+{
+    print("in p4");
+    a=Create("p1.dat");
+    
+    print(". out p4");
+    return 0;
+}
+

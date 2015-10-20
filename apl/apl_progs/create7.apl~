@@ -1,0 +1,11 @@
+decl
+    integer status;
+enddecl
+integer main()
+{
+    print("in init ..");
+    status = Create("myfile.dat");
+    print(status);
+    print(".. out init");
+    return 0;
+}

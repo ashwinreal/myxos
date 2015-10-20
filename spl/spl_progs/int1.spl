@@ -1,0 +1,163 @@
+print ".. in int 1";
+
+alias phySP S0;
+phySP= ([PTBR +2*( SP/512)]*512) + (SP%512); // getting the physical SP add
+
+alias syscallno S1;
+syscallno=[phySP-1];
+
+alias arg1 S2;
+alias arg2 S6;
+arg1=[phySP-3];
+alias retval S4;
+alias ctr S3;
+alias newfreeentry S5;
+ctr=0;
+//////////////create
+if(syscallno==1) then
+    while(ctr < 64) do
+        if( [FAT + ctr*8]==arg1) then       
+            retval=0;//success
+            [phySP-2]=retval;
+            print "already there";
+            ireturn;
+        endif;
+        ctr=ctr+1;
+    endwhile;
+   // if no file with same name is found search the df in page 6
+    ctr=24;
+    while(ctr<=447) do //search the df
+        if([6*512 + ctr]==0) then
+            break;
+        endif;
+        ctr=ctr+1;
+    endwhile;
+    if(ctr==448) then
+        retval=-1;//no space in disk
+        [phySP-2]=retval;
+        print "no space dsk";
+        ireturn;
+    endif;
+    //if we have space
+    newfreeentry=ctr; // this no. block is free which is used as basic block
+    ctr=0;
+    while(ctr < 64) do //search FAT
+        if( [FAT + ctr*8 + 2]==-1) then //basic block is empty
+            [FAT + ctr*8]=arg1;
+            [FAT + ctr*8 + 1]=0;
+            [FAT + ctr*8 + 2]=newfreeentry;
+            retval=0;
+            break;
+        endif;
+        ctr=ctr+1;
+    endwhile;
+    if(ctr==64) then //no free fat entry
+        retval=-1;
+        [phySP-2]=retval;
+        print "no space fat";
+        ireturn;
+    endif;
+    //if free fat entry
+
+    load(1,newfreeentry);  //loading data block into scratchpad;
+
+    ctr=0;
+    while(ctr<64) do  //initialising all data block as -1
+        [512+ctr]=-1;
+        ctr=ctr+1;
+    endwhile; 
+
+    store(1,newfreeentry); //store the changed data block
+
+    [6*512 + newfreeentry]=1;// set the block as used 
+    
+    store(5,19);
+    store(6,20);
+    [phySP-2]=0;//success
+    print "created";
+    ireturn;
+
+print "created";
+
+endif; 
+
+
+
+////////////////////////////////// Delete
+alias fatind S6;
+alias datablk S7;
+alias ctr2 S8;
+if(syscallno==4) then
+	print "Deleting..";
+	arg1=[phySP-3]; //file name as the argument
+	//search the fat if it exists
+	ctr=0;
+	while(ctr<64) do
+		if([512*5 + 8*ctr]==arg1) then // file exists
+			break;
+		endif;
+		ctr=ctr+1;
+	endwhile;
+	if(ctr==64) then
+		print "not exist";
+		[phySP-2]=-1;
+		ireturn;
+	endif;
+	fatind=ctr;
+	print (fatind);
+	ctr=0;
+	ctr2=[FILE_TABLE + 2*ctr]; //for debugging!
+	while(ctr<64) do
+		if([FILE_TABLE + 2*ctr]==fatind) then
+			print (ctr2);
+			print (fatind);
+			print "err:fileopen";
+			[phySP-2]=-1;
+			ireturn;
+		endif;
+		ctr=ctr+1;
+	endwhile;
+
+	//deleting data blocks
+	ctr=0;
+	while(1) do
+		load(1,[512*5 + 8*fatind + 2]); // load the basic block to scratchad
+		datablk=[512+ctr];
+		ctr=ctr+1;
+		if(datablk==-1 || datablk>=256) then // sequentially data block is added (assumption) so dont have to check after first -1 
+			break;
+		endif;
+		loadingoad(1,datablk);
+		ctr2=0;
+		while(ctr2<512) do
+			[512 + ctr2]=""; //erasing data block;
+			ctr2=ctr2+1;
+		endwhile;
+		store(1,[datablk]); // store back the erased data blk
+		[6*512 + datablk] = 0; //mark unused in disk free
+
+	endwhile;
+	[6*512 + [5*512 + 8*fatind + 2]]=0; // !!!!!! update df for basic block
+	ctr=0;
+	ctr2=0;
+	load(1,[512*5 + 8*fatind + 2]);//load the basic block
+	while(ctr<512) do  //basic block erase 
+		[512+ctr]="";
+		ctr=ctr+1;
+	endwhile;
+	store(1,[512*5 + 8*fatind + 2]);
+	
+	print(fatind);
+	[5*512 + 8*fatind]=-1;  //invalidate the fat entry
+	[5*512 + 8*fatind+2]=-1;
+
+	store(5,19);
+	store(6,20);
+
+	print "deleted";
+	[phySP-2]=0;
+	ireturn;
+
+
+
+endif;

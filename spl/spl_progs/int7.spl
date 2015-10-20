@@ -1,0 +1,153 @@
+alias phySP S0;
+phySP = (SP%512) + ([PTBR + 2*(SP/512)]*512);
+alias syscallno S1;
+syscallno = [phySP-1];
+alias ctr S2;
+alias ctr2 S3;
+alias newpcb S4;
+alias procpcb S5;
+alias arg1 S6;
+alias newPCB S7;
+///exit
+
+if(syscallno==10) then
+	ctr=0;
+	print("exit");
+
+	//wait mod
+	newPCB=-1;
+	while(ctr<32) do
+		if([1536 + 32*ctr + 1]>=100) then
+			newPCB=1536 + 32*([1536 + 32*ctr + 1]-100);
+			break;
+		endif;
+		ctr=ctr+1;
+	endwhile;
+	ctr=0;
+	if(newPCB==-1) then
+	while(ctr<32) do
+		if([1536 + 32*ctr + 1]==1 ) then// any ready state
+			break;
+		endif;
+		ctr=ctr+1;
+	endwhile;
+	
+	newpcb =ctr;
+	if(ctr==32)then
+		print("none ready");
+		halt;
+	endif;
+
+	
+	procpcb=READY_LIST + ((PTBR-1024)/8)*32;
+	
+	//////////close all open files
+		ctr2=0;
+		while(ctr2<8) do
+
+			ctr=0;
+			arg1=ctr2;
+			if([procpcb+15+2*arg1]!=-1) then 
+		
+				ctr=[procpcb+15+2*arg1] ; // ctr stores pointer to sys wide 
+	
+				//print(ctr);
+	
+				ctr2=[FILE_TABLE + 2*ctr + 1];
+	
+				[FILE_TABLE + 2*ctr + 1]=[FILE_TABLE + 2*ctr + 1]-1;  // decrease the file count
+
+				// dbt: did not work when : [FILE_TABLE + 2*[FILE_TABLE + 2*[ctr] + 1]+ 1]=[FILE_TABLE + 2*[FILE_TABLE + 2*[ctr] + 1] + 1]-1; 
+	
+				ctr2=[FILE_TABLE + 2*ctr + 1];
+	
+
+				if([FILE_TABLE + 2*[procpcb+15+2*arg1]+1]==0) then
+					[FILE_TABLE + 2*[procpcb+15+2*arg1]]=-1; //if 0 file count invalidate  sys wide entry
+					
+				endif;
+
+				[1280 + [procpcb+15+2*arg1]]=0;///////////////////////////////////// extra free memory pages of the process
+
+				[procpcb+15+2*arg1]=-1;    // invalidate per proc entry
+				[procpcb+15+2*arg1 + 1]="00";
+		
+			endif;
+
+			ctr2=ctr2+1;
+		endwhile;
+	endif;
+		[procpcb + 1]=0; //state as terminated
+
+		ctr=0;
+		///// round robin
+		newPCB=procpcb +32;
+		while(ctr<32) do
+			if([newPCB + 1]==1)then
+				break;
+			endif;
+			newPCB=newPCB+32;
+			if(newPCB==1536 + 1024)then
+				newPCB=1536;
+			endif;
+
+			ctr=ctr+1;
+
+		endwhile;	
+//schedule new process
+	BP=[newPCB + 2];
+	SP=[newPCB + 3];
+	PTBR=[newPCB + 5];
+	PTLR=[newPCB + 6];
+	R0=[newPCB + 7];
+	R1=[newPCB + 8];
+	R2=[newPCB + 9];
+	R3=[newPCB + 10];
+	R4=[newPCB + 11];
+	R5=[newPCB + 12];
+	R6=[newPCB + 13];
+	R7=[newPCB + 14];
+
+
+	SP=SP+1;
+	alias newphysicalSP S2; 
+	newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); 
+	[ newphysicalSP ] = [ newPCB + 4 ];
+
+	[newPCB+1]=2;
+	ireturn;
+
+
+endif;
+//wait
+alias S7 waitpcb;
+alias S8 curpcb;
+if(syscallno==13) then
+	waitpcb= 1536  + 32*WaitingPID;
+	if([waitpcb +1]==0 || [waitpcb+1]==2)  then
+		print("ter or run");
+		[phySP-2]=-1;
+		ireturn;		
+	endif;
+	curpcb=1536  + 32*((PTBR-1024)/8);
+	[curpcb + 1]=100 +WaitingPID;
+
+	/////// how to pass control to scheduler!!!!!!! ??
+
+	ireturn;
+
+endif;
+//signal
+if(syscallno==14) then
+	ctr=0;
+	newPCB=-1;
+	while(ctr<32) do
+		if([1536 + 32*ctr + 1]==100 + [1536 + 32*((PTBR-1024)/8)]) then
+			newPCB=1536 + 32*([1536 + 32*ctr + 1]-100);
+			[newPCB+1]=1;
+			break;
+		endif;
+		ctr=ctr+1;
+	endwhile;
+endif;
+

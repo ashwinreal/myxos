@@ -1,0 +1,77 @@
+alias currPID S0;
+currPID=(PTBR-1024)/8;
+
+alias currPCB S1;
+currPCB=READY_LIST + 32*currPID; 
+
+[currPCB+1]=1;// change the state  current process to ready
+[currPCB + 2]=BP;//saving BP
+[currPCB +3]=SP-1; //saving SP
+
+alias phyaddSP S2;
+phyaddSP= ([PTBR + 2*(SP/512) + 0]*512) + (SP%512);
+
+[currPCB + 4] =[phyaddSP];//save IP which is at top of stack
+
+[currPCB + 5]=PTBR;
+[currPCB + 6]=PTLR;
+
+[currPCB + 7]=R0;
+[currPCB + 8]=R1;
+[currPCB + 9]=R2;
+[currPCB + 10]=R3;
+[currPCB + 11]=R4;
+[currPCB + 12]=R5;
+[currPCB + 13]=R6;
+[currPCB + 14]=R7;
+
+alias ctr S3;
+alias newPCB S4;
+ctr=0;
+newPCB=currPCB +32;
+while(ctr<32) do
+	if([newPCB + 1]==1)then
+		break;
+	endif;
+	newPCB=newPCB+32;
+	if(newPCB==1536 + 1024)then
+		newPCB=1536;
+	endif;
+
+	ctr=ctr+1;
+
+endwhile;
+//print(PTBR);
+BP=[newPCB + 2];
+SP=[newPCB + 3];
+PTBR=[newPCB + 5];
+PTLR=[newPCB + 6];
+R0=[newPCB + 7];
+R1=[newPCB + 8];
+R2=[newPCB + 9];
+R3=[newPCB + 10];
+R4=[newPCB + 11];
+R5=[newPCB + 12];
+R6=[newPCB + 13];
+R7=[newPCB + 14];
+
+//print(PTBR);
+SP=SP+1;
+alias newphysicalSP S2; 
+newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); 
+[ newphysicalSP ] = [ newPCB + 4 ];
+
+[newPCB+1]=2;
+//print(PTBR);
+	ctr=0;
+	//while(ctr<4) do
+	//	print([PTBR + ctr*2]);
+	//	ctr=ctr+1;
+	//endwhile;
+	ctr=0;
+//print("..timer");
+//print([ newphysicalSP ]);
+ireturn;
+
+
+

@@ -1,0 +1,18 @@
+decl
+integer n;
+integer s;
+enddecl
+
+integer main()
+{
+n=20;
+integer ctr;
+ctr=0;
+
+tr<=n) do
+	print(ctr);
+	ctr=ctr+2;
+endwhile;
+s=Exec();
+return 0;
+}

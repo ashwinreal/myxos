@@ -1,0 +1,200 @@
+alias phySP S0;
+phySP = (SP%512) + ([PTBR + 2*(SP/512)]*512);
+alias syscallno S1;
+syscallno = [phySP-1];
+alias ctr S2;
+alias arg1 S3;
+alias ctr2 S4;
+alias newpages S5;
+alias procpcb S10;
+
+//exec
+
+if(syscallno==9) then
+	arg1= [phySP-3];  //filename of new process as the arg
+	print("exec int");
+	ctr=0;
+	ctr2=0;
+	procpcb=READY_LIST + ((PTBR-1024)/8)*32;
+	while(ctr<8)do 
+		//print([PTBR+ ctr]);
+		ctr=ctr+1;
+	endwhile;
+	ctr=0;
+	//check if file exists
+	while(ctr<64) do
+		if([5*512 + 8*ctr]==arg1) then
+			break;
+		endif;
+		ctr=ctr+1;
+	endwhile;
+	if(ctr==64) then
+	//	print("inval. inp");
+		[phySP-2]=-1;
+		ireturn;
+	endif;
+	//print([5*512 + 8*ctr + 2]);
+	
+	load(1,[5*512 + 8*ctr + 2]) ;//load the basic blck
+	//print("bb loaded");
+	ctr=0;
+	ctr2=0;
+
+	while(ctr<512) do
+		if([512+ctr]!=-1) then
+			ctr2=ctr2+1;
+		else 
+			break;         ///extraaaa added,needed
+		endif;
+		ctr=ctr+1;
+	endwhile;
+	newpages=ctr2;
+	if(newpages>=4)then
+		//print(">=4");
+		[phySP-2]=-1;
+		ireturn;
+	endif;
+	ctr=0;
+	ctr2=0;
+	while(ctr<3) do //count no of valid code pages excludng stack!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		if([PTBR +2*ctr ]!=-1 && ([PTBR + 2*ctr +1]=="01" || [PTBR + 2*ctr +1]=="11" ) ) then
+			ctr2=ctr2+1;
+		endif;
+		ctr=ctr+1;
+	endwhile;
+	alias oldpages S11;
+	oldpages=ctr2;
+	//print(newpages);
+	//print(oldpages);
+	
+
+	ctr=newpages; //saving 
+	if(oldpages>newpages) then //less pages needed for new process the deallocate the pages
+		//print("o>n");
+		while(newpages!=oldpages) do
+			//print(newpages);
+			[1280 + [PTBR +2*(newpages)]]=0;
+			[PTBR +2*(newpages)]=-1;
+			[PTBR +2*(newpages) +1]="00";
+			newpages=1+newpages;
+		endwhile;
+	endif;
+	newpages=ctr;//store back
+
+	if(oldpages<newpages) then 
+		ctr=0;
+		ctr2=newpages-oldpages;  //exta req.
+
+		while(ctr<64) do // checking if ctr2 memory pages are avail. in memory list
+			if(ctr2==0) then 
+				break;
+			endif;
+			if([1280 + ctr]==0) then
+				ctr2=ctr2-1;
+			endif;
+			ctr=ctr+1;	
+		endwhile;
+		if(ctr2!=0) then        // no mem pages avail.
+			//print("pagesfull");
+			[phySP-2]=-1;
+			ireturn;
+		endif;
+		ctr=0;
+		ctr2=newpages-oldpages;            //
+		while(ctr<64) do 
+			if(ctr2==newpages) then 
+				break;
+			endif;
+			if([1280 + ctr]==0) then
+				ctr2=ctr2+1;
+				[1280 + ctr]=1;
+				[PTBR + ctr2*2 ]=ctr;
+				[PTBR + ctr2*2 +1]="01";
+			endif;
+
+			ctr=ctr+1;	
+		endwhile;
+	endif;
+		ctr=0;
+		ctr2=0;
+		//print("here");
+	while(ctr<8)do 
+		//print([PTBR +  ctr]);
+		ctr=ctr+1;
+	endwhile;
+	ctr=0;
+	ctr2=0;
+		while(ctr<512) do
+			if(ctr2==newpages) then
+				break;
+			endif;
+			if([512+ctr]!=-1) then
+				
+				load([PTBR + ctr2*2 ],[512 + ctr]); //load data blocks
+				ctr2=ctr2+1;
+			endif;
+			ctr=ctr+1;
+		endwhile; 
+		//print("exec close");
+		//////////close all open files
+		
+		ctr2=0;
+		while(ctr2<8) do
+
+			ctr=0;
+			arg1=ctr2;
+			//print("inwhile");
+			if([procpcb+15+2*arg1]!=-1) then 
+			//	print("here");
+				ctr=[procpcb+15+2*arg1] ; // ctr stores pointer to sys wide 
+	
+				//print(ctr);
+	
+				ctr2=[FILE_TABLE + 2*ctr + 1];
+	
+				[FILE_TABLE + 2*ctr + 1]=[FILE_TABLE + 2*ctr + 1]-1;  // decrease the file count
+
+				// dbt: did not work when : [FILE_TABLE + 2*[FILE_TABLE + 2*[ctr] + 1]+ 1]=[FILE_TABLE + 2*[FILE_TABLE + 2*[ctr] + 1] + 1]-1; 
+	
+				ctr2=[FILE_TABLE + 2*ctr + 1];
+	
+
+				if([FILE_TABLE + 2*[procpcb+15+2*arg1]+1]==0) then
+					[FILE_TABLE + 2*[procpcb+15+2*arg1]]=-1; //if 0 file count invalidate  sys wide entry
+					
+				endif;
+
+				[procpcb+15+2*arg1]=-1;    // invalidate per proc entry
+				[procpcb+15+2*arg1 + 1]="00";
+		
+			endif;
+
+			ctr2=ctr2+1;
+		endwhile;
+
+	ctr=0;
+
+
+	
+	SP=3*512;
+	[phySP]=0;
+	//print("exec over");
+	ireturn;
+
+endif;
+//getpid
+if(syscallno==11) then
+	//print("pid is");
+	procpcb=READY_LIST + ((PTBR-1024)/8)*32;
+	[phySP-2]=[procpcb + 0];
+	ireturn;
+endif;
+//getppid
+if(syscallno==12) then
+	procpcb=READY_LIST + ((PTBR-1024)/8)*32;
+	[phySP-2]=[procpcb + 31];
+	ireturn;
+endif;
+
+
+

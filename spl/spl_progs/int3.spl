@@ -1,0 +1,79 @@
+alias phySP S0;
+alias ctr S1;
+alias arg1 S2;
+alias arg2 S3;
+alias syscallno S4;
+alias basicblk S5;
+alias basicblkind S6;
+alias datablk S7;
+alias filefat S8;
+alias filesize S9;
+alias procpcb S10;
+alias lseek S11;
+phySP = (SP%512) + [PTBR + 2*(SP/512)]*512;
+syscallno=[phySP-1];
+
+print("in int3");
+print(syscallno);
+//seek
+if(syscallno==6) then
+	print("inseek");
+	arg1=[phySP-4]; // fd
+	arg2=[phySP-3]; // new lseek
+	procpcb=READY_LIST + ((PTBR-1024)/8)*32;
+	if(arg1 < 0 || arg1 > 7) then
+        [phySP-2]=-1;
+        print "invalid fd";
+        ireturn;
+    endif;
+    if([procpcb+15+2*arg1]==-1) then 
+        [phySP-2]=-1;
+        print "not found";
+        ireturn;
+    endif;
+    filefat=[FILE_TABLE + 2*[procpcb+15+2*arg1]];
+    filesize=[5*512 + 8*filefat  + 1];
+    if(arg2 > filesize || arg2 < 0) then
+    	[phySP-2]=-1;
+    	print("invalid lseek");
+    	ireturn;
+    endif;
+    [procpcb+15+2*arg1 + 1 ]=arg2; //change lseek
+    [phySP-2]=0;
+    print("seek changed");
+    ireturn;
+endif;
+
+////// read
+
+if(syscallno==7) then
+    procpcb=READY_LIST + ((PTBR-1024)/8)*32;
+	arg1=[phySP-4]; // fd
+	if(arg1 < 0 || arg1 > 7) then
+        [phySP-2]=-1;
+        print "invalid fd";
+        ireturn;
+    endif;
+    if([procpcb+15+2*arg1]==-1) then 
+        [phySP-2]=-1;
+        print "not found";
+        ireturn;
+    endif;
+	filefat=[FILE_TABLE + 2*[procpcb+15+2*arg1]];
+    lseek=[procpcb+15+2*arg1 +1];
+    basicblk=[5*512 + 8*filefat + 2];
+    load(1,basicblk);
+    filesize=[5*512 + 8*filefat  + 1];
+    if(filesize==lseek) then
+    	print("err:at end");
+    	[phySP-2]=-1;
+    	ireturn;
+    endif;
+    basicblkind=lseek/512;
+    datablk=[512 +basicblkind];	
+    load(1,datablk);
+    [phySP-3]=[512 + (lseek%512)];
+    [procpcb+15+2*arg1 +1]=[procpcb+15+2*arg1 +1] +1 ;
+    [phySP-2]=0;
+    ireturn;
+endif;
