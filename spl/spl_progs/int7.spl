@@ -4,44 +4,76 @@ alias syscallno S1;
 syscallno = [phySP-1];
 alias ctr S2;
 alias ctr2 S3;
-alias newpcb S4;
+alias newPCB S4;
 alias procpcb S5;
 alias arg1 S6;
-alias newPCB S7;
-///exit
 
-if(syscallno==10) then
+///exit
+//wait
+alias waitpcb S7;
+alias  curpcb S8;
+alias  WaitingPID S9;
+
+if(syscallno==10 || syscallno ==13) then
+	
+	if(syscallno==13) then
+	WaitingPID = [phySP-3]; // the pid for which the current process has to wait for
+	waitpcb= 1536  + 32*WaitingPID;
+	if([waitpcb +1]==0 || [waitpcb+1]==2)  then
+		print("ter or run");
+		[phySP-2]=-1;
+		ireturn;		
+	endif;
+
+	curpcb=1536  + 32*((PTBR-1024)/8);
+	[curpcb + 1]=100 +WaitingPID;
+
+	/////// now pass control to scheduler!!!!!!! ??
+
+	endif;
+
+
 	ctr=0;
 	print("exit");
 
+
 	//wait mod
+	procpcb=READY_LIST + ((PTBR-1024)/8)*32;
 	newPCB=-1;
 	while(ctr<32) do
-		if([1536 + 32*ctr + 1]>=100) then
-			newPCB=1536 + 32*([1536 + 32*ctr + 1]-100);
+		
+		if([1536 + 32*ctr + 1] == 100 + [procpcb]) then
+			[1536 + 32*ctr + 1] =1;
+			newPCB=1536 + 32*ctr;
 			break;
 		endif;
 		ctr=ctr+1;
 	endwhile;
+	print("asds");
 	ctr=0;
 	if(newPCB==-1) then
+	print("asds");
 	while(ctr<32) do
-		if([1536 + 32*ctr + 1]==1 ) then// any ready state
+		if([1536 + 32*ctr + 1]==1 ) then   // any ready state
 			break;
 		endif;
 		ctr=ctr+1;
 	endwhile;
 	
-	newpcb =ctr;
+	newPCB =ctr;
 	if(ctr==32)then
 		print("none ready");
 		halt;
 	endif;
+	endif;
+	print("asds");
+	if(syscallno==10) then        // 10 start
+	
 
 	
-	procpcb=READY_LIST + ((PTBR-1024)/8)*32;
 	
-	//////////close all open files
+	
+	//////////close all open files and free the memory
 		ctr2=0;
 		while(ctr2<8) do
 
@@ -76,9 +108,13 @@ if(syscallno==10) then
 
 			ctr2=ctr2+1;
 		endwhile;
-	endif;
+	
 		[procpcb + 1]=0; //state as terminated
 
+
+	endif;        // 10 end
+
+	print("asds");
 		ctr=0;
 		///// round robin
 		newPCB=procpcb +32;
@@ -114,29 +150,14 @@ if(syscallno==10) then
 	newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); 
 	[ newphysicalSP ] = [ newPCB + 4 ];
 
+
 	[newPCB+1]=2;
+
 	ireturn;
 
 
 endif;
-//wait
-alias S7 waitpcb;
-alias S8 curpcb;
-if(syscallno==13) then
-	waitpcb= 1536  + 32*WaitingPID;
-	if([waitpcb +1]==0 || [waitpcb+1]==2)  then
-		print("ter or run");
-		[phySP-2]=-1;
-		ireturn;		
-	endif;
-	curpcb=1536  + 32*((PTBR-1024)/8);
-	[curpcb + 1]=100 +WaitingPID;
 
-	/////// how to pass control to scheduler!!!!!!! ??
-
-	ireturn;
-
-endif;
 //signal
 if(syscallno==14) then
 	ctr=0;

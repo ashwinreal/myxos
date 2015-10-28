@@ -124,16 +124,16 @@ if(syscallno==4) then
 		load(1,[512*5 + 8*fatind + 2]); // load the basic block to scratchad
 		datablk=[512+ctr];
 		ctr=ctr+1;
-		if(datablk==-1 || datablk>=256) then // sequentially data block is added (assumption) so dont have to check after first -1 
+		if(datablk==-1 || datablk>=256 || datablk=="") then // sequentially data block is added (assumption) so dont have to check after first -1 
 			break;
 		endif;
-		loadingoad(1,datablk);
+		load(1,datablk);
 		ctr2=0;
 		while(ctr2<512) do
 			[512 + ctr2]=""; //erasing data block;
 			ctr2=ctr2+1;
 		endwhile;
-		store(1,[datablk]); // store back the erased data blk
+		store(1,datablk); // store back the erased data blk
 		[6*512 + datablk] = 0; //mark unused in disk free
 
 	endwhile;

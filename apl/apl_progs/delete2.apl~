@@ -5,7 +5,7 @@ integer main()
 {	
 	print("in init del");
 	
-	a=Delete("pfinal7.dat");
+	a=Delete("ashwin4.dat");
 	print (a);
 	print("out init del");
 	return 0;

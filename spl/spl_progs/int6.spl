@@ -177,11 +177,17 @@ if(syscallno==9) then
 
 	
 	SP=3*512;
+
 	[phySP]=0;
 	//print("exec over");
+	[1024 + [procpcb]*8 + 6 + 1]="01";
+	[[1024 + [procpcb]*8 + 6 + 0]*512]=0;        // put ip 0 in start of stack
+	//breakpoint;
 	ireturn;
 
 endif;
+
+
 //getpid
 if(syscallno==11) then
 	//print("pid is");
@@ -189,6 +195,8 @@ if(syscallno==11) then
 	[phySP-2]=[procpcb + 0];
 	ireturn;
 endif;
+
+
 //getppid
 if(syscallno==12) then
 	procpcb=READY_LIST + ((PTBR-1024)/8)*32;
