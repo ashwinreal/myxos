@@ -28,7 +28,7 @@ if(syscallno==10 || syscallno ==13) then
 	curpcb=1536  + 32*((PTBR-1024)/8);
 	[curpcb + 1]=100 +WaitingPID;
 
-	/////// now pass control to scheduler!!!!!!! ??
+	/////// now pass control to scheduler!!!!!!! 
 
 	endif;
 
@@ -73,7 +73,7 @@ if(syscallno==10 || syscallno ==13) then
 	
 	
 	
-	//////////close all open files and free the memory
+	//////////close all open files 
 		ctr2=0;
 		while(ctr2<8) do
 
@@ -99,7 +99,7 @@ if(syscallno==10 || syscallno ==13) then
 					
 				endif;
 
-				[1280 + [procpcb+15+2*arg1]]=0;///////////////////////////////////// extra free memory pages of the process
+				//[1280 + [procpcb+15+2*arg1]]=0;///////////////////////////////////// extra free memory pages of the process !!Wrong !!!
 
 				[procpcb+15+2*arg1]=-1;    // invalidate per proc entry
 				[procpcb+15+2*arg1 + 1]="00";
@@ -110,7 +110,22 @@ if(syscallno==10 || syscallno ==13) then
 		endwhile;
 	
 		[procpcb + 1]=0; //state as terminated
+		////-------------- free memory
 
+			ctr=0;
+			while(ctr<4) do
+				if([PTBR + 2*ctr + 1] == "01" || [PTBR + 2*ctr + 1] == "11") then
+					[1280 + [PTBR + 2*ctr]]= [1280 + [PTBR + 2*ctr]] -1 ;
+				else if( [PTBR + 2*ctr] >=448) then
+					[6*512 + [PTBR + 2*ctr]] =  [6*512 + [PTBR + 2*ctr]] -1;   // increase the swap area shared pages count
+					endif;
+				[PTBR + 2*ctr]=-1;    // invalidate page table
+				[PTBR + 2*ctr + 1]="00";
+				endif;
+				ctr=ctr+1;
+			endwhile;
+
+		//----------
 
 	endif;        // 10 end
 
@@ -144,6 +159,9 @@ if(syscallno==10 || syscallno ==13) then
 	R6=[newPCB + 13];
 	R7=[newPCB + 14];
 
+
+	///////// do we have to give return value
+	// [phySP-2] =0 ;
 
 	SP=SP+1;
 	alias newphysicalSP S2; 

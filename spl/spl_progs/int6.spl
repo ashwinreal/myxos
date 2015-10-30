@@ -12,7 +12,7 @@ alias procpcb S10;
 
 if(syscallno==9) then
 	arg1= [phySP-3];  //filename of new process as the arg
-	print("exec int");
+	//print("exec int");
 	ctr=0;
 	ctr2=0;
 	procpcb=READY_LIST + ((PTBR-1024)/8)*32;
@@ -40,102 +40,60 @@ if(syscallno==9) then
 	ctr=0;
 	ctr2=0;
 
-	while(ctr<512) do
-		if([512+ctr]!=-1) then
-			ctr2=ctr2+1;
-		else 
-			break;         ///extraaaa added,needed
-		endif;
+	//------I think we need this?
+	ctr=0;
+	while(ctr<512 && [512 + ctr]!=-1 && [512 + ctr]!="" ) do
 		ctr=ctr+1;
 	endwhile;
-	newpages=ctr2;
-	if(newpages>=4)then
-		//print(">=4");
+	if(ctr>=4) then
+		print(">=4");
 		[phySP-2]=-1;
 		ireturn;
 	endif;
+	//-------
+
+//----------------------------------------------------
+	//steps 3,4 deleted
+//-------------------------------------
+
 	ctr=0;
 	ctr2=0;
-	while(ctr<3) do //count no of valid code pages excludng stack!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		if([PTBR +2*ctr ]!=-1 && ([PTBR + 2*ctr +1]=="01" || [PTBR + 2*ctr +1]=="11" ) ) then
-			ctr2=ctr2+1;
+	while(ctr<=2) do   //decrement code pages's memory
+		if([PTBR + 2*ctr + 1] == "01" || [PTBR + 2*ctr + 1] == "11") then
+			[1280 + [PTBR + 2*ctr]]=  [1280 + [PTBR + 2*ctr]] -1;
+		else if( [PTBR + 2*ctr] >=448) then
+				[6*512 + [PTBR + 2*ctr]] = [6*512 + [PTBR + 2*ctr]] -1;   // decrease the swap area shared pages count
+			endif;
 		endif;
 		ctr=ctr+1;
 	endwhile;
-	alias oldpages S11;
-	oldpages=ctr2;
-	//print(newpages);
-	//print(oldpages);
-	
 
-	ctr=newpages; //saving 
-	if(oldpages>newpages) then //less pages needed for new process the deallocate the pages
-		//print("o>n");
-		while(newpages!=oldpages) do
-			//print(newpages);
-			[1280 + [PTBR +2*(newpages)]]=0;
-			[PTBR +2*(newpages)]=-1;
-			[PTBR +2*(newpages) +1]="00";
-			newpages=1+newpages;
-		endwhile;
-	endif;
-	newpages=ctr;//store back
-
-	if(oldpages<newpages) then 
-		ctr=0;
-		ctr2=newpages-oldpages;  //exta req.
-
-		while(ctr<64) do // checking if ctr2 memory pages are avail. in memory list
-			if(ctr2==0) then 
-				break;
-			endif;
-			if([1280 + ctr]==0) then
-				ctr2=ctr2-1;
-			endif;
-			ctr=ctr+1;	
-		endwhile;
-		if(ctr2!=0) then        // no mem pages avail.
-			//print("pagesfull");
-			[phySP-2]=-1;
-			ireturn;
-		endif;
-		ctr=0;
-		ctr2=newpages-oldpages;            //
-		while(ctr<64) do 
-			if(ctr2==newpages) then 
-				break;
-			endif;
-			if([1280 + ctr]==0) then
-				ctr2=ctr2+1;
-				[1280 + ctr]=1;
-				[PTBR + ctr2*2 ]=ctr;
-				[PTBR + ctr2*2 +1]="01";
-			endif;
-
-			ctr=ctr+1;	
-		endwhile;
-	endif;
-		ctr=0;
-		ctr2=0;
-		//print("here");
-	while(ctr<8)do 
-		//print([PTBR +  ctr]);
+	ctr=0;
+	while(ctr<=2 && [512 + ctr]!=-1 && [512 + ctr]!="" ) do    // give the data block nos only(virtual mem)
+		[PTBR + 2*ctr ]= [512 +ctr];
+		[PTBR + 2*ctr + 1] = "00" ;
 		ctr=ctr+1;
 	endwhile;
-	ctr=0;
-	ctr2=0;
-		while(ctr<512) do
-			if(ctr2==newpages) then
-				break;
-			endif;
-			if([512+ctr]!=-1) then
-				
-				load([PTBR + ctr2*2 ],[512 + ctr]); //load data blocks
-				ctr2=ctr2+1;
-			endif;
-			ctr=ctr+1;
-		endwhile; 
-		//print("exec close");
+	while(ctr<=2) do
+		[PTBR + 2*ctr ]= -1;
+		[PTBR + 2*ctr + 1] = "00" ;
+		ctr=ctr+1;
+	endwhile;
+	[PTBR + 2*3 + 1] = "01" ; //stack is valid
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 		//////////close all open files
 		
 		ctr2=0;

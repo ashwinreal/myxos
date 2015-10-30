@@ -1,0 +1,125 @@
+alias cause S0;
+alias VPagenum S1;
+alias Ip_addr S2;
+alias phySP S3;
+phySP = (SP%512) + ([PTBR + 2*(SP/512)]*512);
+alias ctr S4;
+alias ctr2 S5;
+alias newpg S6;
+alias victim S7;
+alias ctr3 S8;
+alias valid S9;
+alias swptbr S10;
+alias ten S11;
+
+print("in ex");
+S11=10;
+cause = EFR % 10;		// Gets value of cause field (size 1 char)
+VPagenum = (EFR / 10) % 100;    // Gets value of BadVAddr 
+Ip_addr = (EFR/1000);		//Gets value of IP at the point of exception
+//print("cause=");
+//print (cause);
+if(cause != 0) then
+		print("unknwn err");
+		SP=SP+1;
+		phySP = (SP%512) + ([PTBR + 2*(SP/512)]*512);
+		[phySP-1]=10;
+		inline "JMP 11776";   //not pg fault goto exit(int 7)
+endif;
+if([PTBR + VPagenum*2]==-1) then
+			print("invalid");
+			SP=SP+1;
+		phySP = (SP%512) + ([PTBR + 2*(SP/512)]*512);
+		[phySP-1]=10;
+		inline "JMP 11776";   //not pg fault goto exit(int 7)
+endif;
+	ctr=0;
+	while(ctr<64) do
+		if([1280 +ctr]==0) then
+			break;
+		endif;
+		ctr=ctr+1;
+	endwhile;
+	
+
+
+	if(ctr<64) then
+	victim=ctr;
+	[1280 + victim]=1;
+	endif;
+	//print("victim=");
+	//print(victim);
+
+//////////// int page replacement y swap out always ?? Shouldnt we find out if there is a free memory page first!!
+if(ctr==64)  then// no free pages
+	ctr=0;
+	ctr2=PTBR;
+	while(ctr<32) do
+		if([PTBR + ctr2]==1024 + 8*32) then
+			ctr2=1024;
+		endif;
+		ctr3=0;
+		while(ctr3<3) do  //stack excluded
+			if([1280 + [ctr2 + 2*ctr3]]==1) then    /// single page that is not shared 
+				if([ctr2 + 2*ctr3 + 1]=="11") then
+					[ctr2 + 2*ctr3 + 1]="01";	
+				else if([ctr2 + 2*ctr3 + 1]=="10") then
+						[ctr2 + 2*ctr3 + 1]="00";
+					endif;
+				endif;
+				if(([ctr2 + 2*ctr3 + 1]=="00")||[ctr2 + 2*ctr3 + 1]=="01") then         // the ref. bit is 0	
+					victim =[ctr2 + 2*ctr3];
+					swptbr=ctr2 + 2*ctr3;
+					valid=1;
+					break;
+				endif;
+			endif; 
+			ctr3=ctr3+1;
+		endwhile;
+		if(valid==1) then
+			break;
+		endif;
+		ctr=ctr+1;
+		ctr2=ctr2+8;
+	endwhile;
+
+
+
+	ctr=448;
+	while(ctr<512) do
+		if([6*512 + ctr]==0) then
+			break;
+		endif;
+		ctr=ctr+1;
+	endwhile;
+	if(ctr==512) then
+		print("eeer");
+		SP=SP+1;
+		phySP = (SP%512) + ([PTBR + 2*(SP/512)]*512);
+		[phySP-1]=10;
+		inline "JMP 11776";   //not pg fault goto exit(int 7)
+	endif;
+
+	[6*512 + ctr]=[6*512 + ctr]+1;
+	[swptbr]=ctr;
+	//end pg replace
+endif;
+//---------------
+
+
+	if([PTBR + 2*VPagenum] <448) then
+		load(victim,[PTBR + 2*VPagenum]);
+	else
+		load(victim,[PTBR + 2*VPagenum]);
+		[6*512 +[PTBR + 2*VPagenum]]=[6*512 +[PTBR + 2*VPagenum]]-1;
+	endif;
+
+	[PTBR + 2*VPagenum]=victim;
+	[PTBR + 2*VPagenum+1]="11";
+	SP=SP+1;
+	phySP = (SP%512) + ([PTBR + 2*(SP/512)]*512);
+	[phySP]=Ip_addr;
+	print("ex out");
+	ireturn;
+
+

@@ -3,12 +3,12 @@ phySP = (SP%512) + ([PTBR + 2*(SP/512)]*512);
 alias syscallno S1;
 syscallno = [phySP-1];
 alias ctr S2;
-
+alias childpcbno S4;
 ///// Fork
-//print("int 5");
-
+//print("int 5");	
+alias ctr2 S7;
 if(syscallno==8) then
-	print("in fork");
+	//print("in fork");
 	ctr=0;
 	while(ctr<32)  do  // check PCB space available
 		if([1536 + 32*ctr + 1] == 0) then    //state = 0 then free 
@@ -21,72 +21,76 @@ if(syscallno==8) then
 		[phySP-2]=-1;
 		ireturn;
 	endif;
-	alias childpcbno S4;
+	
 	childpcbno = ctr;
 
 	[1536 + 32*childpcbno + 0] = childpcbno; // setting pid 
 	//print(childpcbno);
 
+
+
+//----------------------------------------
+	//step 4 deleted
+//---------------------------------
+
+
+
 	ctr=0;
-	alias ctr2 S5;
 	ctr2=0;
-	while(ctr<4) do            //checking no of valid pages in pg table
-		//print([PTBR + 2*ctr + 1]);
-		if([PTBR +2*ctr ]!=-1 &&([PTBR + ctr*2 +1]=="01" || [PTBR + ctr*2 + 1]=="11")) then
-			//print([PTBR +2*ctr ]);
-			ctr2=ctr2+1;
+	while(ctr<64) do 
+		if([1280 + ctr]==0) then
+			break;
 		endif;
 		ctr=ctr+1;
 	endwhile;
 
-	alias vpgs S6; 
-	vpgs=ctr2;
-
-	ctr=0;
-	while(ctr<64) do // checking if ctr2 memory pages are avail. in memory list
-		if(ctr2==0) then 
-			break;
-		endif;
-		if([1280 + ctr]==0) then
-			ctr2=ctr2-1;
-		endif;
-		ctr=ctr+1;	
-	endwhile;
-
-	if(ctr2!=0) then        // no mem pages avail.
-		print("pagesfull");
+	if(ctr==64) then                     //note:If a free page for stack is not available, some page can be swapped to the disk to make space 
+		print("no stack");
 		[phySP-2]=-1;
 		ireturn;
 	endif;
 
-	ctr=0;
+	[1280 + ctr]=1; //stack used
+	//print ("stack=");
+	//print ctr;
 	ctr2=0;
-	alias ctr3 S8;
-
-	
-	while(ctr<64) do // free pages are avail.!! so update the memfree list,copy the parent page for child,update child page table 
-		if(ctr2==vpgs)then
-			break;
-		endif;
-		if([1280 + ctr]==0) then
-			//print("..");
-			//print(ctr);
-			[1280 + ctr]=1;  //mark mem page used
-			ctr3=0;
-			//print([PTBR  + 2*ctr2 + 0 ]);
-			while(ctr3<512) do
-				
-				[512*ctr + ctr3]=[512*([PTBR  + 2*ctr2 + 0 ]) +ctr3]; //copy pages
-				ctr3=ctr3+1;
-			endwhile;
-
-			[1024 + 8*childpcbno + ctr2*2]=ctr;              //childpcbno==pid
-			[1024 + 8*childpcbno + ctr2*2 +1]=[PTBR + ctr2*2 + 1]; 
-
-			ctr2=ctr2+1;
-		endif;
-		ctr=ctr+1;
+	while(ctr2<512) do //copy stack word to word
+		[512*ctr + ctr2]= [[PTBR + 2*3]*512 + ctr2];   // if implementing above note then change this also cos stack may not be present
+		ctr2=ctr2+1;
 	endwhile;
+
+	[1024 + 8*childpcbno + 3*2] = ctr; // setting page for stack
+	[1024 + 8*childpcbno + 3*2 + 1] = "01";
+
+	ctr=0;
+	while(ctr<=2) do // copy page table except stack
+		[1024 + 8*childpcbno + 2*ctr ]=[PTBR + 2*ctr];
+		[1024 + 8*childpcbno + 2*ctr + 1]=[PTBR + 2*ctr + 1];
+
+		if([PTBR + 2*ctr + 1] == "01" || [PTBR + 2*ctr + 1] == "11") then
+			[1280 + [PTBR + 2*ctr]]= 1 + [1280 + [PTBR + 2*ctr]] ;
+		else if( [PTBR + 2*ctr] >=448) then
+				[6*512 + [PTBR + 2*ctr]] = 1 + [6*512 + [PTBR + 2*ctr]];   // increase the swap area shared pages count
+			endif;
+
+		endif;
+
+		ctr=ctr+1;
+
+	endwhile;
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	[1536 + 32*childpcbno + 5]=1024 + 8*childpcbno; //set PTBR in pcb
 	[1536 + 32*childpcbno + 4] = [phySP] ;// setting the IP ,note: only physical add. is dif. bt logical is same 
@@ -140,14 +144,14 @@ if(syscallno==8) then
 
 	//print("child..");
 	//print([1536 + 32*childpcbno + 4] );
-	print("forked");
+	//print("forked");
 	ctr=0;
 //	[phySP]=[1536 + 32*childpcbno + 4];
 
 	ctr=0;
 
 	ctr=0;
-	print(childpcbno);
+	//print(childpcbno);
 	while(ctr<32) do
 		//print([1536 + 32*childpcbno + ctr]);
 		ctr=ctr+1;
@@ -157,6 +161,7 @@ if(syscallno==8) then
 		//print([1536 + 32*ppid + ctr]);
 		ctr=ctr+1;
 	endwhile;
+	breakpoint;
 	ireturn;
 
 
