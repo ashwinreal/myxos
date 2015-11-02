@@ -30,9 +30,9 @@ pfinal7.dat
 
 
 
--1
-0
--1
+stage10.xsm
+512
+31
 
 
 
@@ -54,7 +54,7 @@ ex101.xsm
 
 
 
-stage10.xsm
+odd.xsm
 512
 47
 
@@ -62,9 +62,9 @@ stage10.xsm
 
 
 
--1
-0
--1
+fork.xsm
+512
+49
 
 
 

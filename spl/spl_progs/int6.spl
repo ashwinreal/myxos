@@ -7,19 +7,16 @@ alias arg1 S3;
 alias ctr2 S4;
 alias newpages S5;
 alias procpcb S10;
-
+alias fat S11;
 //exec
 
 if(syscallno==9) then
 	arg1= [phySP-3];  //filename of new process as the arg
-	//print("exec int");
+	print("exec int");
 	ctr=0;
 	ctr2=0;
 	procpcb=READY_LIST + ((PTBR-1024)/8)*32;
-	while(ctr<8)do 
-		//print([PTBR+ ctr]);
-		ctr=ctr+1;
-	endwhile;
+
 	ctr=0;
 	//check if file exists
 	while(ctr<64) do
@@ -33,6 +30,11 @@ if(syscallno==9) then
 		[phySP-2]=-1;
 		ireturn;
 	endif;
+	fat=ctr;
+
+	
+
+
 	//print([5*512 + 8*ctr + 2]);
 	
 	load(1,[5*512 + 8*ctr + 2]) ;//load the basic blck
@@ -61,9 +63,9 @@ if(syscallno==9) then
 	while(ctr<=2) do   //decrement code pages's memory
 		if([PTBR + 2*ctr + 1] == "01" || [PTBR + 2*ctr + 1] == "11") then
 			[1280 + [PTBR + 2*ctr]]=  [1280 + [PTBR + 2*ctr]] -1;
-		else if( [PTBR + 2*ctr] >=448) then
-				[6*512 + [PTBR + 2*ctr]] = [6*512 + [PTBR + 2*ctr]] -1;   // decrease the swap area shared pages count
-			endif;
+		//else if( [PTBR + 2*ctr] >=448) then                               
+		///		[6*512 + [PTBR + 2*ctr]] = [6*512 + [PTBR + 2*ctr]] -1;   // stage 10 mod not required 
+		//	endif;
 		endif;
 		ctr=ctr+1;
 	endwhile;
@@ -85,6 +87,8 @@ if(syscallno==9) then
 
 
 
+	[1472 + [procpcb]] =fat;  // S10 mod !!!!!!!!!!!!!!!!
+	breakpoint;
 
 
 
@@ -108,13 +112,13 @@ if(syscallno==9) then
 	
 				//print(ctr);
 	
-				ctr2=[FILE_TABLE + 2*ctr + 1];
+				//ctr2=[FILE_TABLE + 2*ctr + 1]; //????????
 	
 				[FILE_TABLE + 2*ctr + 1]=[FILE_TABLE + 2*ctr + 1]-1;  // decrease the file count
 
 				// dbt: did not work when : [FILE_TABLE + 2*[FILE_TABLE + 2*[ctr] + 1]+ 1]=[FILE_TABLE + 2*[FILE_TABLE + 2*[ctr] + 1] + 1]-1; 
 	
-				ctr2=[FILE_TABLE + 2*ctr + 1];
+				///ctr2=[FILE_TABLE + 2*ctr + 1];     //??????
 	
 
 				if([FILE_TABLE + 2*[procpcb+15+2*arg1]+1]==0) then

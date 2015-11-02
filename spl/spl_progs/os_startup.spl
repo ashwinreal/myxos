@@ -100,6 +100,19 @@ while(ctr<16) do            // initialising per process open file table
 	ctr=ctr+2;
 endwhile;
 
+
+
+//stage 10 mod---------------      /no swapping for demand paging ..we already have it in disk just point to it
+ctr=0;
+while(ctr<32) do
+[1472 + ctr]=-1;
+ctr=ctr+1;
+endwhile;
+[1472 + 0]=-1;              // dont know the fat index of init bt rest we will know.
+//--------------------
+
+
+
 print ".. os end";
 //breakpoint;
 ireturn;

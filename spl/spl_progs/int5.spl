@@ -35,6 +35,10 @@ if(syscallno==8) then
 	childpcb =1536 + 32*childpcbno;
 
 	[childpcb] = childpcbno; // setting pid 
+
+	    [1472 + childpcbno] = [1472 + (PTBR-1024)/8];  // S10 mod !!!!!!!!!!!!!!!!
+
+
 	//print(childpcbno);
 
 
@@ -63,7 +67,7 @@ if(syscallno==8) then
 
 		            //note:If a free page for stack is not available, some page can be swapped to the disk to make space 
 		
-		            //[phySP-2]=-1;
+		          //  [phySP-2]=-1;
 		           	//ireturn;
 	  
 
@@ -79,7 +83,7 @@ if(syscallno==8) then
 		//print (ctr3-1024)/8;
 
 		ctr4=0;
-		while(ctr4<3) do  //stack excluded
+		while(ctr4<3 && ctr3!=1024) do  //stack excluded
 			if([1280 + [ctr3 + 2*ctr4]]==1) then    /// single page that is not shared 
 				
 				if([ctr3 + 2*ctr4 + 1]=="01") then         // the ref. bit is 0	
@@ -109,32 +113,23 @@ if(syscallno==8) then
 		ctr2=ctr2+1;
 		ctr3=ctr3+8;
 	endwhile;
+//----------------- swap find del
+	 
+//--------------------------
 
-	  ctr3=448;
-	while(ctr3<512) do
-		if([6*512 + ctr3]==0) then
-			break;
-		endif;
-		ctr3=ctr3+1;
-	endwhile;
-	if(ctr3==512) then
-		print("eeer");
-		SP=SP+1;
-		phySP = (SP%512) + ([PTBR + 2*(SP/512)]*512);
-		[phySP-1]=10;
-		inline "JMP 11776";   // goto exit(int 7)
-	endif;
-
+//fat = [1472 + ((ctr3-1024)/8)] ;  //pid will be the pid from which we are replacing   
+//basic= [FAT + ([1472 + ((ctr3-1024)/8)])*8 + 2];
+//print("ashwin");
+temp =([1472 + ((ctr3-1024)/8)]);
+//print(temp);
+load(1, [FAT + temp*8 + 2]);
+//print("!!!!!!!");
+//code_page =[512 + ctr4];
+[swptbr]= [512 + ctr4];
+[swptbr+1]="00";
 
 
 
-	[6*512 + ctr3]=[6*512 + ctr3]+1; //df swap is used!!
-	//print("%%");
-	//print(ctr3);
-	store(victim,ctr3);           // store the  victim to swap disk
-
-	[swptbr]=ctr3;                     // change the pt
-	[swptbr +  1] = "00"; 
 
 
 	ctr=victim;
@@ -142,9 +137,10 @@ if(syscallno==8) then
 	//print("!!!!!");
 //	print(ctr);
 	//print([PTBR + 6]);
+
 	endif;
 
-	
+	breakpoint;
 	[1280 + ctr]=1; //stack used
 	
 
@@ -152,7 +148,7 @@ if(syscallno==8) then
 	//print ctr;
 	ctr2=0;
 	while(ctr2<512) do //copy stack word to word
-		[512*ctr + ctr2]= [[PTBR + 2*3]*512 + ctr2];   // if implementing above note then change this also cos stack may not be present?? is it?
+		[512*ctr + ctr2]= [[PTBR + 2*3]*512 + ctr2]; 
 		ctr2=ctr2+1;
 	endwhile;
 	temp=1024 + 8*childpcbno;
@@ -183,7 +179,7 @@ if(syscallno==8) then
 
 
 
-	//breakpoint;
+	breakpoint;
 
 
 	
@@ -210,8 +206,6 @@ if(syscallno==8) then
 
 
 	ctr=15;
-	
-	
 	//print("here");
 	while(ctr<31) do
 		[childpcb+ctr]=[1536 + 32*ppid + ctr];
