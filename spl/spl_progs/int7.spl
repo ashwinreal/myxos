@@ -15,7 +15,9 @@ alias  curpcb S8;
 alias  WaitingPID S9;
 
 if(syscallno==10 || syscallno ==13) then
-	
+	//print("exit");
+	//print (PTBR-1024)/8;
+
 	if(syscallno==13) then
 	WaitingPID = [phySP-3]; // the pid for which the current process has to wait for
 	waitpcb= 1536  + 32*WaitingPID;
@@ -34,10 +36,11 @@ if(syscallno==10 || syscallno ==13) then
 
 
 	ctr=0;
-	print("exit");
+	
 
 
 	//wait mod
+
 	procpcb=READY_LIST + ((PTBR-1024)/8)*32;
 	newPCB=-1;
 	while(ctr<32) do
@@ -49,10 +52,10 @@ if(syscallno==10 || syscallno ==13) then
 		endif;
 		ctr=ctr+1;
 	endwhile;
-	print("asds");
+	//print("asds");
 	ctr=0;
 	if(newPCB==-1) then
-	print("asds");
+	//print("not waiting");
 	while(ctr<32) do
 		if([1536 + 32*ctr + 1]==1 ) then   // any ready state
 			break;
@@ -66,7 +69,7 @@ if(syscallno==10 || syscallno ==13) then
 		halt;
 	endif;
 	endif;
-	print("asds");
+	//print("asds");
 	if(syscallno==10) then        // 10 start
 	
 
@@ -108,39 +111,48 @@ if(syscallno==10 || syscallno ==13) then
 
 			ctr2=ctr2+1;
 		endwhile;
-	
+		//print("$$$$");
+		//print procpcb;
 		[procpcb + 1]=0; //state as terminated
 		////-------------- free memory
-
+		//print("free!!");
+	//	print(PTBR);
+		breakpoint;
 			ctr=0;
 			while(ctr<4) do
-				if([PTBR + 2*ctr + 1] == "01" || [PTBR + 2*ctr + 1] == "11") then
+				if(([PTBR + 2*ctr + 1] == "01") || ([PTBR + 2*ctr + 1] == "11")) then
 					[1280 + [PTBR + 2*ctr]]= [1280 + [PTBR + 2*ctr]] -1 ;
 				else if( [PTBR + 2*ctr] >=448) then
 					[6*512 + [PTBR + 2*ctr]] =  [6*512 + [PTBR + 2*ctr]] -1;   // increase the swap area shared pages count
 					endif;
-				[PTBR + 2*ctr]=-1;    // invalidate page table
-				[PTBR + 2*ctr + 1]="00";
 				endif;
+				//print PTBR + 2*ctr;
+				//print [PTBR + 2*ctr];
+				//[PTBR + 2*ctr]=-1;    // invalidate page table      
+				//[PTBR + 2*ctr + 1]="00"; 
+				
+
+				
 				ctr=ctr+1;
 			endwhile;
-
+			store(6,20);
 		//----------
 
 	endif;        // 10 end
 
-	print("asds");
+	//print("asds");
 		ctr=0;
 		///// round robin
 		newPCB=procpcb +32;
 		while(ctr<32) do
+			if(newPCB==1536 + 1024)then
+				newPCB=1536;
+			endif;
 			if([newPCB + 1]==1)then
 				break;
 			endif;
 			newPCB=newPCB+32;
-			if(newPCB==1536 + 1024)then
-				newPCB=1536;
-			endif;
+			
 
 			ctr=ctr+1;
 
@@ -170,7 +182,11 @@ if(syscallno==10 || syscallno ==13) then
 
 
 	[newPCB+1]=2;
-
+	//print ("newpid");
+	//print [newPCB];
+	//print PTBR;
+	//print ("out exit");
+	breakpoint;	
 	ireturn;
 
 

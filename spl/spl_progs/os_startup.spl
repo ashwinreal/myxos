@@ -42,10 +42,17 @@ endwhile;
 //load(26,22);
 //load(27,23);
 
-//[1280 + 25]=1;
-//[1280 + 26]=1;
-//[1280 + 27]=1;
+[1280 + 25]=0;
+[1280 + 26]=0;
+[1280 + 27]=0;
 [1280 + 28]=1;
+
+ctr=29;
+while(ctr<64) do             // initialise 
+	[1280 + ctr]=0;
+	ctr=ctr+1;
+endwhile;
+
 PTBR=1024;
 PTLR=4;
 
@@ -94,5 +101,5 @@ while(ctr<16) do            // initialising per process open file table
 endwhile;
 
 print ".. os end";
-breakpoint;
+//breakpoint;
 ireturn;

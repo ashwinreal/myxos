@@ -1,6 +1,7 @@
 decl
 integer n;
 integer s;
+integer ctr;
 enddecl
 
 integer main()
@@ -12,13 +13,15 @@ s=Fork();
 s=Fork();
 s=Fork();
 s=Fork();
-//s=Getpid();
-//print(s);
+s=Fork();
 
-
-while(ctr<=200) do
-	//print(ctr);
-	ctr=ctr+1;
+s=Getpid();
+print("pid =");
+print(s);
+print("After fork");
+ctr=0;
+while(ctr > -1) do
+ctr=ctr+1;
 endwhile;
 return 0;
 }

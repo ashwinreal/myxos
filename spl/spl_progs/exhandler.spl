@@ -12,14 +12,17 @@ alias valid S9;
 alias swptbr S10;
 alias ten S11;
 
-print("in ex");
+//print("in ex");
 S11=10;
 cause = EFR % 10;		// Gets value of cause field (size 1 char)
 VPagenum = (EFR / 10) % 100;    // Gets value of BadVAddr 
 Ip_addr = (EFR/1000);		//Gets value of IP at the point of exception
 //print("cause=");
-//print (cause);
+//print ("^^^");
+//print (PTBR);
 if(cause != 0) then
+		print (cause);
+		print(VPagenum);
 		print("unknwn err");
 		SP=SP+1;
 		phySP = (SP%512) + ([PTBR + 2*(SP/512)]*512);
@@ -51,28 +54,36 @@ endif;
 	//print(victim);
 
 //////////// int page replacement y swap out always ?? Shouldnt we find out if there is a free memory page first!!
-if(ctr==64)  then// no free pages
+if(ctr==64)  then // no free pages
 	ctr=0;
-	ctr2=PTBR;
-	while(ctr<32) do
-		if([PTBR + ctr2]==1024 + 8*32) then
+	ctr2=PTBR + 8;
+	//print("lolo");
+	valid=0;
+	while(ctr<32*2) do // this is  technical if all are "11"
+		if(ctr2==1024 + 8*32) then
 			ctr2=1024;
 		endif;
+		//print("pids");
+		//print (ctr2-1024)/8;
+
 		ctr3=0;
 		while(ctr3<3) do  //stack excluded
 			if([1280 + [ctr2 + 2*ctr3]]==1) then    /// single page that is not shared 
+				
+				if([ctr2 + 2*ctr3 + 1]=="01") then         // the ref. bit is 0	
+					victim =[ctr2 + 2*ctr3];
+					swptbr=ctr2 + 2*ctr3;
+					valid=1;                           // this if block has to be written above the one below it!!!
+					break;
+				endif;	
+
 				if([ctr2 + 2*ctr3 + 1]=="11") then
 					[ctr2 + 2*ctr3 + 1]="01";	
 				else if([ctr2 + 2*ctr3 + 1]=="10") then
 						[ctr2 + 2*ctr3 + 1]="00";
 					endif;
 				endif;
-				if(([ctr2 + 2*ctr3 + 1]=="00")||[ctr2 + 2*ctr3 + 1]=="01") then         // the ref. bit is 0	
-					victim =[ctr2 + 2*ctr3];
-					swptbr=ctr2 + 2*ctr3;
-					valid=1;
-					break;
-				endif;
+				
 			endif; 
 			ctr3=ctr3+1;
 		endwhile;
@@ -82,8 +93,10 @@ if(ctr==64)  then// no free pages
 		ctr=ctr+1;
 		ctr2=ctr2+8;
 	endwhile;
-
-
+//	print (PTBR-1024)/8;
+//	print (victim);
+//	print (swptbr);
+	//breakpoint;
 
 	ctr=448;
 	while(ctr<512) do
@@ -101,7 +114,14 @@ if(ctr==64)  then// no free pages
 	endif;
 
 	[6*512 + ctr]=[6*512 + ctr]+1;
-	[swptbr]=ctr;
+
+	store(victim,ctr);           // store the  victim to swap disk
+
+	[swptbr]=ctr;                     // change the pt
+	[swptbr +  1] = "00";              // set it invalid as its in disk
+	//print("!!1");
+	//print ctr;	
+//	print [swptbr];
 	//end pg replace
 endif;
 //---------------
@@ -118,8 +138,15 @@ endif;
 	[PTBR + 2*VPagenum+1]="11";
 	SP=SP+1;
 	phySP = (SP%512) + ([PTBR + 2*(SP/512)]*512);
-	[phySP]=Ip_addr;
-	print("ex out");
+	//print ("#$%");
+	//print PTBR;
+	//print ((PTBR-1024)/8);
+//	print victim;
+	//print VPagenum;
+	//print Ip_addr;
+	//[phySP]=Ip_addr;
+	//print("ex out");
+	
 	ireturn;
 
 

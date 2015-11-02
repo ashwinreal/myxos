@@ -30,14 +30,13 @@ alias newPCB S4;
 ctr=0;
 newPCB=currPCB +32;
 while(ctr<32) do
+	if(newPCB>=1536 + 1024)then
+		newPCB=1536;
+	endif;
 	if([newPCB + 1]==1)then
 		break;
 	endif;
 	newPCB=newPCB+32;
-	if(newPCB==1536 + 1024)then
-		newPCB=1536;
-	endif;
-
 	ctr=ctr+1;
 
 endwhile;
@@ -61,6 +60,8 @@ alias newphysicalSP S2;
 newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); 
 [ newphysicalSP ] = [ newPCB + 4 ];
 
+//print(newPCB);
+
 [newPCB+1]=2;
 //print(PTBR);
 	ctr=0;
@@ -69,8 +70,10 @@ newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
 	//	ctr=ctr+1;
 	//endwhile;
 	ctr=0;
+//print([newPCB]);
 //print("..timer");
 //print([ newphysicalSP ]);
+//breakpoint;
 ireturn;
 
 

@@ -1,0 +1,146 @@
+alias Cause S0;
+alias VPagenum S1; 
+alias Ip_addr S2;
+alias i S3;
+alias j S4;
+alias pagetable S5;
+alias k S6;
+alias l S7;
+alias phypage S8;
+alias phySP S9;
+alias current S10;
+
+phySP=([PTBR+2*(SP/512)]*512)+(SP%512);
+
+Cause = EFR % 10;		// Gets value of cause field (size 1 char)
+VPagenum = (EFR / 10) % 100;    // Gets value of BadVAddr 
+Ip_addr = (EFR/1000);		//Gets value of IP at the point of exception
+
+if(Cause==1) then 
+print "Illegal inst";
+endif;
+
+if(Cause==2) then
+print "Illegal mem access";
+endif;
+
+if(Cause==3) then
+print "arithmatic exception";
+endif;
+
+if(Cause==4) then
+print "Illegal operands";
+endif;
+
+if(Cause!=0) then
+[phySP-1]=10;
+inline "JMP 11776";
+endif;
+
+if([PTBR+(VPagenum*2)]==-1) then
+
+print "invalid page";
+[phySP-1]=10;
+inline "JMP 11776";
+endif;
+
+i=0;
+while(i<64) do
+if([1280+i]==0) then
+break;
+endif;
+i=i+1;
+endwhile;
+
+j=(PTBR-1024)/8;
+
+if(i!=64) then
+[1280+i]=[1280+i]+1;                   //
+else
+
+breakpoint;
+while((j<32) && (j>=0)) do
+k=0;
+pagetable=(j*8)+1024;
+while(k<3) do
+if(([1280 + [pagetable+(k*2)]]==1) && ([pagetable+(k*2)+1]=="11")) then
+		[pagetable+(k*2)+1]="01";
+endif;
+if(([1280 + [pagetable+(k*2)]]==1) && ([pagetable+(k*2)+1]=="01")) then
+	
+		l=448;
+		while(l<512) do
+			if([(6*512)+l]==0) then
+
+				
+				i=[pagetable+(k*2)];
+				
+				store([pagetable+(k*2)],l);	
+				[(6*512)+l]=[(6*512)+l]+1;
+				store(6,20);
+				[pagetable+(k*2)]=l;
+				[pagetable+(k*2)+1]="00";
+					
+				break;
+			endif;
+		l=l+1;
+		endwhile;
+
+		if(l==512) then
+		print "NO FREE ENTRY";
+		current=(PTBR-1024)/8;
+		[phySP-1]=10;
+		inline "JMP 11776";
+		endif;
+	
+
+endif;
+if(i!=64) then
+	break;
+	endif;
+k=k+1;
+endwhile;
+
+if(i!=64) then
+break;
+endif;
+
+if((j+1)<32) then
+j=j+1;
+else 
+j=0;
+endif;
+endwhile;
+endif;
+
+
+
+
+phypage=[PTBR+(VPagenum*2)];
+
+if((phypage>=21) && (phypage<=447)) then
+load(i,phypage);
+endif;
+
+if(phypage>=448) then
+load(i,phypage);
+
+[(6*512)+phypage]=[(6*512)+phypage]-1;
+store(6,20);
+endif;
+
+
+[PTBR+(VPagenum*2)]	= i;
+
+[PTBR+(VPagenum*2)+1]="11";
+
+SP=SP+1;
+phySP=([PTBR+2*(SP/512)]*512)+(SP%512);
+[phySP]=Ip_addr;		
+
+breakpoint;
+ireturn;
+
+
+
+
